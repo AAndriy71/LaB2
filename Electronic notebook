@@ -1,0 +1,116 @@
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
+import os
+from datetime import datetime
+from tkcalendar import Calendar
+
+class NoteApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Електронний записник з нагадуваннями")
+
+        # Створюємо папку для зберігання файлів записів, якщо її ще не існує
+        if not os.path.exists("notes"):
+            os.makedirs("notes")
+
+        # Додамо стиль до інтерфейсу
+        self.root.configure(bg="#F0F0F0")
+        self.root.geometry("400x450")
+
+        # Створюємо календарний віджет
+        self.calendar = Calendar(root, selectmode="day", date_pattern="yyyy-mm-dd")
+        self.calendar.pack(pady=10)
+
+        # Створюємо текстове поле для введення запису
+        self.entry = tk.Text(root, width=40, height=10)
+        self.entry.pack(pady=10)
+
+        # Створюємо кнопку для додавання запису
+        self.add_button = tk.Button(root, text="Додати", command=self.add_note, bg="#4CAF50", fg="white")
+        self.add_button.pack()
+
+        # Створюємо кнопку для перегляду історії
+        self.history_button = tk.Button(root, text="Історія", command=self.show_history)
+        self.history_button.pack()
+
+    def add_note(self):
+        # Отримуємо вміст з текстового поля та обраний день з календаря
+        note_text = self.entry.get("1.0", tk.END).strip()
+        selected_date = self.calendar.get_date()
+
+        # Якщо запис не порожній
+        if note_text:
+            # Створюємо файл для зберігання запису
+            file_name = f"notes/note_{len(os.listdir('notes')) + 1}.txt"
+            with open(file_name, "w") as f:
+                # Записуємо інформацію про дату та час додавання запису
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"Дата та час додавання: {current_time}\n")
+                f.write(f"Обраний день: {selected_date}\n\n")
+                f.write(note_text)
+            messagebox.showinfo("Успіх", "Запис додано!")
+            # Очищаємо текстове поле після додавання запису
+            self.entry.delete("1.0", tk.END)
+        else:
+            messagebox.showerror("Помилка", "Запис порожній!")
+
+    def show_history(self):
+        # Створюємо нове вікно для відображення історії
+        history_window = tk.Toplevel(self.root)
+        history_window.title("Історія додавань")
+        history_window.geometry("400x400")
+
+        # Створюємо прокручуване текстове поле для відображення історії
+        history_text = scrolledtext.ScrolledText(history_window, width=40, height=10)
+        history_text.pack()
+
+        # Зчитуємо список файлів з записами
+        files = os.listdir("notes")
+
+        # Додаємо кожен запис до текстового поля
+        for file in files:
+            with open(os.path.join("notes", file), "r") as f:
+                note_content = f.read()
+                history_text.insert(tk.END, f"Запис {file}: \n{note_content}\n")
+                # Додаємо кнопки для видалення та редагування запису
+                delete_button = tk.Button(history_window, text="Видалити",
+                                          command=lambda f=file: self.delete_note(f))
+                delete_button.pack()
+                edit_button = tk.Button(history_window, text="Змінити",
+                                        command=lambda f=file: self.edit_note(f))
+                edit_button.pack()
+
+    def delete_note(self, file_name):
+        # Видаляємо вибраний файл
+        os.remove(os.path.join("notes", file_name))
+        messagebox.showinfo("Успіх", "Запис видалено!")
+
+    def edit_note(self, file_name):
+        # Відкриваємо вікно для редагування запису
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title("Редагувати запис")
+
+        # Зчитуємо вміст вибраного файлу
+        with open(os.path.join("notes", file_name), "r") as f:
+            note_content = f.read()
+
+        # Створюємо текстове поле для редагування запису
+        edit_text = tk.Text(edit_window, width=40, height=10)
+        edit_text.insert(tk.END, note_content)
+        edit_text.pack(pady=10)
+
+        # Створюємо кнопку для збереження змін
+        save_button = tk.Button(edit_window, text="Зберегти зміни",
+                                command=lambda: self.save_changes(file_name, edit_text.get("1.0", tk.END)))
+        save_button.pack()
+
+    def save_changes(self, file_name, new_content):
+        # Перезаписуємо вибраний файл з новим вмістом
+        with open(os.path.join("notes", file_name), "w") as f:
+            f.write(new_content)
+        messagebox.showinfo("Успіх", "Зміни збережено!")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = NoteApp(root)
+    root.mainloop()
